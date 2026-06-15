@@ -1,0 +1,210 @@
+<%- include('../partials/head', { title: 'Manage' }) %>
+<%- include('../partials/nav') %>
+
+<div class="container pb-5">
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <a href="/parent" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i>
+    </a>
+    <h1 class="h3 mb-0 fw-bold">Manage</h1>
+  </div>
+
+  <% if (error) { %>
+    <div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i><%= error %></div>
+  <% } %>
+  <% if (success) { %>
+    <div class="alert alert-success"><i class="bi bi-check-circle me-2"></i><%= success %></div>
+  <% } %>
+
+  <!-- Tabs -->
+  <ul class="nav nav-tabs mb-4" id="manageTabs">
+    <li class="nav-item">
+      <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#childrenTab">
+        <i class="bi bi-people me-1"></i>Children
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#usersTab">
+        <i class="bi bi-person-badge me-1"></i>User Accounts
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content">
+    <!-- Children Tab -->
+    <div class="tab-pane fade show active" id="childrenTab">
+      <!-- Add child -->
+      <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-white fw-semibold">
+          <i class="bi bi-person-plus me-2 text-primary"></i>Add Child
+        </div>
+        <div class="card-body">
+          <form action="/parent/child/add" method="POST">
+            <div class="row g-3">
+              <div class="col-12 col-sm-6">
+                <label class="form-label small fw-medium">Name</label>
+                <input type="text" name="name" class="form-control" placeholder="Child's name" required>
+              </div>
+              <div class="col-6 col-sm-3">
+                <label class="form-label small fw-medium">Weekly Allowance ($)</label>
+                <input type="number" name="weekly_amount" class="form-control" step="0.01" min="0" placeholder="0.00">
+              </div>
+              <div class="col-6 col-sm-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">Add</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Children list -->
+      <div class="card shadow-sm">
+        <div class="card-header bg-white fw-semibold">
+          <i class="bi bi-people me-2 text-secondary"></i>Current Children
+        </div>
+        <% if (children.length === 0) { %>
+          <div class="card-body text-center text-muted py-4">No children added yet.</div>
+        <% } else { %>
+          <ul class="list-group list-group-flush">
+            <% children.forEach(child => { %>
+              <li class="list-group-item py-3">
+                <form action="/parent/child/edit" method="POST">
+                  <input type="hidden" name="id" value="<%= child.id %>">
+                  <div class="row g-2 align-items-center">
+                    <div class="col-12 col-sm-5">
+                      <input type="text" name="name" class="form-control form-control-sm" value="<%= child.name %>" required>
+                    </div>
+                    <div class="col-6 col-sm-3">
+                      <div class="input-group input-group-sm">
+                        <span class="input-group-text">$</span>
+                        <input type="number" name="weekly_amount" class="form-control" step="0.01" min="0"
+                               value="<%= child.weekly_amount.toFixed(2) %>">
+                        <span class="input-group-text">/wk</span>
+                      </div>
+                    </div>
+                    <div class="col-6 col-sm-4 d-flex gap-2 justify-content-end">
+                      <button type="submit" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-check-lg me-1"></i>Save
+                      </button>
+                    </div>
+                  </div>
+                </form>
+                <form action="/parent/child/remove" method="POST" class="mt-2"
+                      onsubmit="return confirm('Remove <%= child.name %>? Their transaction history will be preserved.')">
+                  <input type="hidden" name="id" value="<%= child.id %>">
+                  <button type="submit" class="btn btn-outline-danger btn-sm">
+                    <i class="bi bi-person-dash me-1"></i>Remove
+                  </button>
+                </form>
+              </li>
+            <% }) %>
+          </ul>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Users Tab -->
+    <div class="tab-pane fade" id="usersTab">
+      <!-- Add user -->
+      <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-white fw-semibold">
+          <i class="bi bi-person-plus me-2 text-primary"></i>Add User Account
+        </div>
+        <div class="card-body">
+          <form action="/parent/user/add" method="POST">
+            <div class="row g-3">
+              <div class="col-12 col-sm-3">
+                <label class="form-label small fw-medium">Username</label>
+                <input type="text" name="username" class="form-control" required autocomplete="off">
+              </div>
+              <div class="col-12 col-sm-3">
+                <label class="form-label small fw-medium">Password</label>
+                <input type="password" name="password" class="form-control" required autocomplete="new-password" minlength="4">
+              </div>
+              <div class="col-6 col-sm-2">
+                <label class="form-label small fw-medium">Role</label>
+                <select name="role" class="form-select" id="newUserRole" onchange="toggleChildSelect(this)">
+                  <option value="parent">Parent</option>
+                  <option value="child">Child</option>
+                </select>
+              </div>
+              <div class="col-6 col-sm-2" id="childSelectWrapper" style="display:none;">
+                <label class="form-label small fw-medium">Link to Child</label>
+                <select name="child_id" class="form-select">
+                  <option value="">— none —</option>
+                  <% children.forEach(c => { %>
+                    <option value="<%= c.id %>"><%= c.name %></option>
+                  <% }) %>
+                </select>
+              </div>
+              <div class="col-12 col-sm-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">Add</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Users list -->
+      <div class="card shadow-sm">
+        <div class="card-header bg-white fw-semibold">
+          <i class="bi bi-people me-2 text-secondary"></i>Existing Accounts
+        </div>
+        <ul class="list-group list-group-flush">
+          <% users.forEach(u => { %>
+            <li class="list-group-item py-3">
+              <div class="row align-items-center g-2">
+                <div class="col-12 col-sm-4">
+                  <span class="fw-medium"><%= u.username %></span>
+                  <span class="badge ms-2 <%= u.role === 'parent' ? 'bg-warning text-dark' : 'bg-info text-dark' %>">
+                    <%= u.role %>
+                  </span>
+                  <% if (u.child_id) {
+                    const linked = children.find(c => c.id === u.child_id);
+                    if (linked) { %>
+                    <span class="text-muted small ms-1">(<%= linked.name %>)</span>
+                  <% }} %>
+                </div>
+                <div class="col-12 col-sm-6">
+                  <form action="/parent/user/change-password" method="POST" class="d-flex gap-2">
+                    <input type="hidden" name="user_id" value="<%= u.id %>">
+                    <input type="password" name="new_password" class="form-control form-control-sm"
+                           placeholder="New password" minlength="4" autocomplete="new-password">
+                    <button type="submit" class="btn btn-outline-secondary btn-sm text-nowrap">Change PW</button>
+                  </form>
+                </div>
+                <% if (u.id !== user.id) { %>
+                  <div class="col-12 col-sm-2 text-sm-end">
+                    <form action="/parent/user/delete" method="POST"
+                          onsubmit="return confirm('Delete account \"<%= u.username %>\"?')">
+                      <input type="hidden" name="id" value="<%= u.id %>">
+                      <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-trash3"></i>
+                      </button>
+                    </form>
+                  </div>
+                <% } %>
+              </div>
+            </li>
+          <% }) %>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function toggleChildSelect(sel) {
+  document.getElementById('childSelectWrapper').style.display =
+    sel.value === 'child' ? '' : 'none';
+}
+// Restore active tab on error/success reload
+const hash = window.location.hash;
+if (hash) {
+  const tab = document.querySelector(`[data-bs-target="${hash}Tab"]`);
+  if (tab) new bootstrap.Tab(tab).show();
+}
+</script>
+</body>
+</html>

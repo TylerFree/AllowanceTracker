@@ -1,0 +1,5 @@
+node_modules/
+allowance.db
+allowance.db-wal
+allowance.db-shm
+.env
