@@ -1,8 +1,62 @@
 const { DatabaseSync } = require('node:sqlite');
 const bcrypt = require('bcrypt');
 const path = require('path');
+const os = require('os');
+const fs = require('fs');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'allowance.db');
+function firstDefined(...values) {
+  for (const value of values) {
+    if (value && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function resolveDefaultDataDir() {
+  const fromEnv = firstDefined(
+    process.env.ALLOWANCE_DATA_DIR,
+    process.env.XDG_DATA_HOME && path.join(process.env.XDG_DATA_HOME, 'allowance-tracker')
+  );
+  if (fromEnv) return fromEnv;
+
+  if (process.platform === 'win32') {
+    return path.join(firstDefined(process.env.LOCALAPPDATA, process.env.APPDATA) || os.homedir(), 'AllowanceTracker');
+  }
+
+  return path.join(os.homedir(), '.local', 'share', 'allowance-tracker');
+}
+
+function ensureWritableDirectory(dirPath) {
+  fs.mkdirSync(dirPath, { recursive: true });
+  fs.accessSync(dirPath, fs.constants.W_OK);
+}
+
+function resolveDbPath() {
+  if (firstDefined(process.env.DB_PATH)) {
+    const explicitPath = path.resolve(process.env.DB_PATH);
+    ensureWritableDirectory(path.dirname(explicitPath));
+    return explicitPath;
+  }
+
+  const candidates = [
+    path.join(resolveDefaultDataDir(), 'allowance.db'),
+    path.join(process.cwd(), 'allowance-data', 'allowance.db'),
+    path.join(__dirname, 'allowance.db'),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const fullPath = path.resolve(candidate);
+      ensureWritableDirectory(path.dirname(fullPath));
+      return fullPath;
+    } catch (_) {
+      // Try the next candidate if this location is not writable.
+    }
+  }
+
+  throw new Error('Unable to find a writable directory for the SQLite database. Set DB_PATH to a writable file path.');
+}
+
+const DB_PATH = resolveDbPath();
 const db = new DatabaseSync(DB_PATH);
 
 db.exec('PRAGMA journal_mode = WAL');
@@ -51,6 +105,10 @@ function runTransaction(fn) {
 }
 
 module.exports = {
+  getDbPath() {
+    return DB_PATH;
+  },
+
   getUserByUsername(username) {
     return db.prepare('SELECT * FROM users WHERE username = ?').get(username);
   },

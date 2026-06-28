@@ -65,4 +65,5 @@ cron.schedule('0 8 * * 6', () => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Allowance Tracker running at http://0.0.0.0:${PORT}`);
   console.log(`Access from other devices at http://<your-server-ip>:${PORT}`);
+  console.log(`SQLite DB path: ${db.getDbPath()}`);
 });
